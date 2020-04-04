@@ -164,6 +164,89 @@ You could combine them in various ways:
 fail fast to return the first validation that fails,
 or havrest errors to keep a list of validation failures.
 
+## Applicatives
+
+Applicatives allow you to apply functions in an elevated state (a functor)
+(e.g., `Option` or `Either`):
+
+    Func<int, int, int> multiply = (x, y) => x * y;
+
+    Some(multiply)
+        .Apply(Some(3))
+        .Apply(Some(4));
+
+Applicatives could be used in validation, so that if the creation
+of a type needs to validate some parameters,
+it can lift the creation function and use `Apply`
+on each of the validated parameters:
+
+    Validation<PhoneNumber> CreatePhoneNumber
+        (string type, string countryCode, string number) =>
+        Valid(PhoneNumber.Create)                   // lift creation function
+        .Apply(validateNumberType(type))
+        .Apply(validateCountryCode(countryCode))
+        .Apply(validateNumber(number));
+
+This is the best way to handle validation if one needs to collect
+all the errors along the way, but if interested in only the first error,
+you can use the LINQ version:
+
+    Validation<PhoneNumber> CreatePhoneNumber
+        (string typeStr, string countryStr, string numberStr) =>
+        from type    in validateNumberType(typeStr)
+        from country in validateCountryCode(countryStr)
+        from number  in validateNumber(numberStr)
+        select PhoneNumber.Create(type, country, number);
+
+# LINQ
+
+By implementing specific LINQ-related methods on `Option`
+(and other monads), one could do the following:
+
+    var result =
+        from a in Double.Parse(s1)
+        where a >= 0
+        let aa = a * a
+
+        from b in Double.Parse(s2)
+        where b >= 0
+        let bb = b * b
+
+        select Math.Sqrt(aa + bb)
+
+where `Double.Parse` returns an `Option`.
+
+## Data
+
+Create immutable data classes that take their initial property values
+via a constructor, and provide methods in the form of "With[Property]"
+to return a new copy of the data object with the new property value. (9.3)
+
+Recommended to use a singe `With` method. (9.3.2)
+
+Use the immutable collections in `System.Collections.Immutable`. (9.4.1)
+
+## Lazy evaluation
+
+If a value is expensive to compute but may or may not be required,
+you can wrap it in a function for lazy evaluation. (11.1)
+
+For example,
+
+    public static Option<T> OrElse<T>
+        (this Option<T> opt, Func<Option<T>> fallback) =>
+            opt.Match(
+            ()  => fallback(),
+            (_) => opt);
+
+A function is a functor, where `Map` may be defined:
+
+    public static Func<R> Map<T, R>(this Func<T> f, Func<T, R> g) =>
+        () => g(f());
+
+You can use a `Try<T>` and `Run<T>` API to represent and execute functions
+that return `Exceptional<T>`. (11.2.1)
+
 ## Misc
 
 To attach some meaning to a type, like `string`, use:
